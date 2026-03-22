@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planr Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --navy:#1B2B4B;--navy2:#243560;--blue:#2E5BFF;--teal:#00C9A7;
+  --bg:#F2F4F8;--card:#fff;--text:#1B2B4B;--text2:#6B7899;--border:#D8DCE8;
+  --shadow:0 4px 20px rgba(27,43,75,0.10);--r:14px;--r-sm:9px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* LOGIN */
+#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#0f1d3d,#1B2B4B,#1e3a6e);}
+.login-box{background:rgba(255,255,255,.07);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:40px;width:min(380px,92vw);box-shadow:0 32px 80px rgba(0,0,0,.4);animation:popIn .4s cubic-bezier(.34,1.56,.64,1);}
+@keyframes popIn{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+.login-brand{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+.login-brand img{width:42px;height:42px;border-radius:10px;}
+.login-brand-text h1{font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;color:#fff;}
+.login-brand-text span{font-size:12px;color:rgba(255,255,255,.4);}
+.field{margin-bottom:15px;}
+.field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.4);margin-bottom:6px;}
+.field input{width:100%;padding:11px 13px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.12);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;color:#fff;transition:all .2s;}
+.field input::placeholder{color:rgba(255,255,255,.25);}
+.field input:focus{outline:none;border-color:var(--blue);background:rgba(255,255,255,.13);}
+.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),#4D73FF);color:#fff;border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .2s;}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(46,91,255,.4);}
+.login-err{color:#ff6b6b;font-size:13px;text-align:center;margin-top:10px;display:none;}
+.login-hint{color:rgba(255,255,255,.25);font-size:12px;text-align:center;margin-top:14px;}
+
+/* APP */
+#appScreen{display:none;}
+.topbar{height:62px;background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 28px;box-shadow:0 2px 12px rgba(0,0,0,.2);position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:10px;}
+.topbar-left img{width:30px;height:30px;border-radius:7px;}
+.topbar-title{font-family:'Outfit',sans-serif;font-size:17px;font-weight:800;color:#fff;}
+.topbar-badge{background:var(--teal);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;margin-left:6px;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.topbar-user{font-size:13px;color:rgba(255,255,255,.6);}
+.logout-btn{padding:6px 14px;border:1.5px solid rgba(255,255,255,.2);border-radius:20px;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:rgba(255,255,255,.6);cursor:pointer;transition:all .2s;}
+.logout-btn:hover{color:#fff;border-color:rgba(255,255,255,.5);}
+
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.page-title{font-family:'Outfit',sans-serif;font-size:26px;font-weight:800;margin-bottom:6px;}
+.page-sub{font-size:14px;color:var(--text2);margin-bottom:28px;}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:28px;}
+.stat-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:22px;box-shadow:var(--shadow);transition:transform .2s;}
+.stat-card:hover{transform:translateY(-2px);}
+.stat-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:10px;}
+.stat-value{font-family:'Outfit',sans-serif;font-size:36px;font-weight:900;color:var(--navy);line-height:1;}
+.stat-sub{font-size:12px;color:var(--text2);margin-top:6px;}
+.stat-card.blue .stat-value{color:var(--blue);}
+.stat-card.teal .stat-value{color:var(--teal);}
+.stat-card.purple .stat-value{color:#7C3AED;}
+.stat-card.orange .stat-value{color:#D97706;}
+
+/* SECTIONS */
+.section{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden;}
+.section-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.section-head h2{font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;}
+.section-head span{font-size:13px;color:var(--text2);}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{padding:10px 18px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);background:var(--bg);border-bottom:1px solid var(--border);text-align:left;}
+.data-table td{padding:12px 18px;border-bottom:1px solid var(--border);font-size:13px;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:#fafafa;}
+.badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-free{background:#D1FAE5;color:#065F46;}
+.badge-active{background:#EEF2FF;color:var(--blue);}
+.delete-btn{padding:5px 12px;border:1.5px solid #FECACA;border-radius:var(--r-sm);background:transparent;color:#EF4444;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;}
+.delete-btn:hover{background:#EF4444;color:#fff;border-color:#EF4444;}
+
+/* GROWTH CHART */
+.chart-wrap{padding:20px 22px;}
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:140px;}
+.chart-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.chart-bar{width:100%;background:linear-gradient(180deg,var(--blue),#4D73FF);border-radius:4px 4px 0 0;min-height:4px;transition:height .4s ease;}
+.chart-bar-label{font-size:11px;color:var(--text2);font-weight:600;}
+.chart-bar-val{font-size:11px;font-weight:700;color:var(--navy);}
+
+/* EMPTY */
+.empty{padding:40px;text-align:center;color:var(--text2);font-size:14px;}
+
+/* REFRESH */
+.refresh-btn{padding:7px 16px;border:1.5px solid var(--border);border-radius:20px;background:var(--card);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.refresh-btn:hover{border-color:var(--blue);color:var(--blue);}
+
+.notif{position:fixed;top:16px;right:16px;z-index:9999;background:var(--navy);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2);transform:translateX(120%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+.notif.show{transform:translateX(0);}
+</style>
+</head>
+<body>
+
+<div class="notif" id="notif"></div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-brand">
+      <img src="data:image/png;base64,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">
+      <div class="login-brand-text">
+        <h1>Planr Admin</h1>
+        <span>Platform dashboard</span>
+      </div>
+    </div>
+    <div class="field"><label>E-mailadres</label><input type="email" id="loginEmail" placeholder="planrworkapp@gmail.com"></div>
+    <div class="field"><label>Wachtwoord</label><input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="login-btn" onclick="doLogin()">Inloggen →</button>
+    <p class="login-err" id="loginErr"></p>
+    <p class="login-hint">Alleen toegankelijk voor platform-eigenaren</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="data:image/png;base64,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">
+      <span class="topbar-title">Planr Admin</span>
+      <span class="topbar-badge">OWNER</span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbarUser"></span>
+      <button class="logout-btn" onclick="doLogout()">Uitloggen</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-title">Platform Dashboard</div>
+    <div class="page-sub" id="lastUpdated">Laden...</div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-label">Totaal Planrs</div>
+        <div class="stat-value" id="statPlanrs">—</div>
+        <div class="stat-sub" id="statPlanrsWeek">— deze week</div>
+      </div>
+      <div class="stat-card teal">
+        <div class="stat-label">Unieke gebruikers</div>
+        <div class="stat-value" id="statUsers">—</div>
+        <div class="stat-sub" id="statUsersWeek">— deze week</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">Totaal leden</div>
+        <div class="stat-value" id="statMembers">—</div>
+        <div class="stat-sub">actieve memberships</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">Nieuwe Planrs (maand)</div>
+        <div class="stat-value" id="statMonth">—</div>
+        <div class="stat-sub">afgelopen 30 dagen</div>
+      </div>
+    </div>
+
+    <!-- PLANRS TABLE -->
+    <div class="section">
+      <div class="section-head">
+        <h2>Alle Planrs</h2>
+        <button class="refresh-btn" onclick="loadData()">🔄 Vernieuwen</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Naam</th>
+              <th>Join-code</th>
+              <th>Leden</th>
+              <th>Medewerkers</th>
+              <th>Aangemaakt</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="planrsTable"><tr><td colspan="7" class="empty">Laden...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RECENT USERS -->
+    <div class="section">
+      <div class="section-head">
+        <h2>Recente gebruikers</h2>
+        <span id="totalUsersLabel"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Naam / Email</th>
+              <th>Planr</th>
+              <th>Rol</th>
+              <th>Lid geworden</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable"><tr><td colspan="4" class="empty">Laden...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://kjyljncvqdezajlwqvhl.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqeWxqbmN2cWRlemFqbHdxdmhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNzcyMDcsImV4cCI6MjA4OTc1MzIwN30.Nw5anjVyRm0SeJjPN3o-SP8NE9A2Yy_n11A_JvB-DXg';
+const OWNER_EMAIL = 'planrworkapp@gmail.com';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let notifTimer = null;
+function showNotif(msg) {
+  const n = document.getElementById('notif');
+  n.textContent = msg; n.classList.add('show');
+  if(notifTimer) clearTimeout(notifTimer);
+  notifTimer = setTimeout(()=>n.classList.remove('show'), 3000);
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  if(!email||!pass) { err.textContent='Vul alle velden in.'; err.style.display='block'; return; }
+  if(email.toLowerCase() !== OWNER_EMAIL) { err.textContent='Geen toegang.'; err.style.display='block'; return; }
+  const {error} = await supabase.auth.signInWithPassword({email, password: pass});
+  if(error) { err.textContent='Onjuiste gegevens.'; err.style.display='block'; return; }
+}
+
+async function doLogout() {
+  await supabase.auth.signOut();
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('appScreen').style.display='none';
+}
+
+async function loadData() {
+  document.getElementById('lastUpdated').textContent = 'Bezig met laden...';
+
+  // Stats
+  const [planrsRes, membersRes, usersRes, weekPlanrsRes, weekUsersRes, monthRes] = await Promise.all([
+    supabase.from('planrs').select('*', {count:'exact'}),
+    supabase.from('members').select('*', {count:'exact'}),
+    supabase.from('members').select('user_id'),
+    supabase.from('planrs').select('*', {count:'exact'}).gte('created_at', new Date(Date.now()-7*24*60*60*1000).toISOString()),
+    supabase.from('members').select('user_id').gte('created_at', new Date(Date.now()-7*24*60*60*1000).toISOString()),
+    supabase.from('planrs').select('*', {count:'exact'}).gte('created_at', new Date(Date.now()-30*24*60*60*1000).toISOString()),
+  ]);
+
+  const uniqueUsers = new Set((usersRes.data||[]).map(m=>m.user_id)).size;
+  const uniqueWeekUsers = new Set((weekUsersRes.data||[]).map(m=>m.user_id)).size;
+
+  document.getElementById('statPlanrs').textContent = planrsRes.count||0;
+  document.getElementById('statPlanrsWeek').textContent = `+${weekPlanrsRes.count||0} deze week`;
+  document.getElementById('statUsers').textContent = uniqueUsers;
+  document.getElementById('statUsersWeek').textContent = `+${uniqueWeekUsers} deze week`;
+  document.getElementById('statMembers').textContent = membersRes.count||0;
+  document.getElementById('statMonth').textContent = monthRes.count||0;
+
+  // Planrs table
+  const {data: planrs} = await supabase.from('planrs').select('*, members(count), employees(count)').order('created_at', {ascending:false});
+  const tbody = document.getElementById('planrsTable');
+  if(!planrs?.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Nog geen Planrs</td></tr>';
+  } else {
+    tbody.innerHTML = planrs.map(p => `
+      <tr>
+        <td><b>${p.name}</b></td>
+        <td><code style="font-family:monospace;background:#f0f0f0;padding:2px 7px;border-radius:4px;font-size:12px;letter-spacing:2px">${p.join_code}</code></td>
+        <td>${p.members?.[0]?.count||0}</td>
+        <td>${p.employees?.[0]?.count||0}</td>
+        <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
+        <td><span class="badge badge-active">Actief</span></td>
+        <td><button class="delete-btn" onclick="deletePlanr('${p.id}','${p.name}')">Verwijderen</button></td>
+      </tr>`).join('');
+  }
+
+  // Recent members
+  const {data: members} = await supabase.from('members').select('*, planrs(name)').order('created_at', {ascending:false}).limit(20);
+  document.getElementById('totalUsersLabel').textContent = `${membersRes.count||0} totaal`;
+  const utbody = document.getElementById('usersTable');
+  if(!members?.length) {
+    utbody.innerHTML = '<tr><td colspan="4" class="empty">Nog geen gebruikers</td></tr>';
+  } else {
+    utbody.innerHTML = members.map(m => `
+      <tr>
+        <td>${m.name||'Onbekend'}</td>
+        <td>${m.planrs?.name||'—'}</td>
+        <td><span class="badge ${m.role==='admin'?'badge-free':'badge-active'}">${m.role}</span></td>
+        <td>${new Date(m.created_at).toLocaleDateString('nl-NL')}</td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('lastUpdated').textContent = `Laatst bijgewerkt: ${new Date().toLocaleTimeString('nl-NL')}`;
+}
+
+async function deletePlanr(id, name) {
+  if(!confirm(`Weet je zeker dat je "${name}" wil verwijderen? Dit verwijdert ook alle medewerkers en diensten.`)) return;
+  await supabase.from('shifts').delete().eq('planr_id', id);
+  await supabase.from('employees').delete().eq('planr_id', id);
+  await supabase.from('members').delete().eq('planr_id', id);
+  await supabase.from('planrs').delete().eq('id', id);
+  showNotif(`"${name}" verwijderd`);
+  loadData();
+}
+
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if(session?.user && session.user.email.toLowerCase() === OWNER_EMAIL) {
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('appScreen').style.display='block';
+    document.getElementById('topbarUser').textContent = session.user.email;
+    loadData();
+    setInterval(loadData, 60000);
+  } else if(session?.user) {
+    await supabase.auth.signOut();
+    const err = document.getElementById('loginErr');
+    err.textContent='Geen toegang tot dit dashboard.';
+    err.style.display='block';
+  }
+});
+</script>
+</body>
+</html>
